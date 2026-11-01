@@ -1,0 +1,17 @@
+# Material confidencial de Grupo Mentor: no publicar
+data/in/
+data/brand/Brand Book/
+data/brand/Brand Logo/
+data/brand/AccesoPro-Logo-Vector.png
+data/brand/logo.png
+
+# Salidas generadas
+data/audio/
+data/video/
+data/thumbs/
+data/clips/
+data/tabla_de_control.csv
+
+# Temporales
+data/_*.json
+*.log
