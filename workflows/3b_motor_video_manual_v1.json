@@ -1,0 +1,1048 @@
+[
+  {
+    "updatedAt": "2026-11-01T08:21:15.548Z",
+    "createdAt": "2026-10-31T17:42:20.901Z",
+    "id": "GNbdK23ubKDJGzSb",
+    "name": "AccesoPro · Motor de contenido en vídeo (Nivel 1)",
+    "description": "Motor principal: un único disparador lee temario/podcast/PDF oficial, divide el tema en ideas, transcribe la clase y detecta clips, y lanza el sub-workflow de producción por pieza con tabla de control.",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "a516644d-b0a6-4233-935f-d5b3f277ab1e",
+        "name": "Lanzar motor de vídeo",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          400
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "cd08382a-356b-412b-a02a-74fcf33ebe0a",
+        "name": "Configuración",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          400
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "language": "javaScript",
+          "jsCode": "const d = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst run_id = 'RUN_' + d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';\nreturn {\n  json: {\n    run_id: run_id,\n    topic_id: 'T1_S01',\n    class_url: 'https://youtu.be/fQBP3hY39oU',\n    class_video_path: '/data/in/clase.mp4',\n    cfg: {\n      writer_model: 'claude-sonnet-4-6',\n      reviewer_model: 'gpt-5-mini',\n      tts_model: 'eleven_multilingual_v2',\n      voice_id: 'wAaI75MqrvvzQRMHEADR',\n      publish_enabled: true,\n      publish_format_script: '9x16',\n      publish_format_clip: '16x9',\n      clip_crop: '1440:1080:0:0',\n      max_corrections: 1,\n      n_scripts: 4,\n      clips_min: 5,\n      clips_max: 8,\n      clip_min_seconds: 25,\n      clip_max_seconds: 125,\n      chunk_seconds: 600,\n      max_pieces_per_run: 3,\n      max_uploads_per_day: 8,\n      daily_budget_usd: 8,\n      force_ids: [],\n      price_writer_in: 3,\n      price_writer_out: 15,\n      price_reviewer_in: 0.25,\n      price_reviewer_out: 2,\n      price_tts_per_1k_chars: 0.18,\n      price_whisper_per_min: 0.006\n    }\n  }\n};"
+        }
+      },
+      {
+        "id": "0063e4aa-2828-4328-8e43-f141250d2b4e",
+        "name": "Leer temario AccesoPro (TXT)",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          440,
+          400
+        ],
+        "parameters": {
+          "operation": "read",
+          "fileSelector": "/data/in/Temario AccesoPro Matematicas Valencia GS.txt",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        }
+      },
+      {
+        "id": "23fa0701-b8eb-42dd-90ae-8cb4a4e9ebdc",
+        "name": "Extraer texto del temario",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          660,
+          400
+        ],
+        "parameters": {
+          "operation": "text",
+          "destinationKey": "data",
+          "options": {}
+        }
+      },
+      {
+        "id": "f05abff0-2dce-48d0-b430-80e837fac93e",
+        "name": "Leer podcast del tema (JSON)",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          880,
+          400
+        ],
+        "parameters": {
+          "operation": "read",
+          "fileSelector": "/data/in/MAT_GS_COMUNIDAD_VALENCIANA_T1_S01_podcast.json",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        }
+      },
+      {
+        "id": "a81f0267-dc8a-44de-8494-af1f7980577e",
+        "name": "Extraer JSON del podcast",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          1100,
+          400
+        ],
+        "parameters": {
+          "operation": "fromJson",
+          "destinationKey": "data",
+          "options": {}
+        }
+      },
+      {
+        "id": "2b2bf1c4-0f34-4094-a33c-979f94a66d56",
+        "name": "Leer temario oficial (PDF)",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          1320,
+          400
+        ],
+        "parameters": {
+          "operation": "read",
+          "fileSelector": "/data/in/Temario Oficial Matematicas Valencia GS.pdf",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        }
+      },
+      {
+        "id": "633ff22c-503d-479e-b7e0-e224ca06d296",
+        "name": "Extraer texto del PDF oficial",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          1540,
+          400
+        ],
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        }
+      },
+      {
+        "id": "0c1a6491-93ce-4ea0-8ed1-ee0478f63d90",
+        "name": "Construir contexto",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          400
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "language": "javaScript",
+          "jsCode": "const conf = $('Configuración').item.json;\nconst NL = String.fromCharCode(10);\nconst CR = String.fromCharCode(13);\nconst marker = conf.topic_id.replace('_', '·');\nconst lines = String($('Extraer texto del temario').item.json.data).split(NL);\nconst section = [];\nlet on = false;\nfor (const raw of lines) {\n  const t = raw.replace(CR, '');\n  if (t.indexOf(marker) >= 0) { on = true; section.push(t); continue; }\n  if (on && (t.indexOf('·S0') >= 0 || t.indexOf('·BLOQUE') >= 0)) break;\n  if (on) section.push(t);\n}\nconst podcast = $('Extraer JSON del podcast').item.json.data.podcast;\nconst podcastText = 'Título: ' + podcast.titulo + NL + podcast.turnos.map((x) => x.hablante + ': ' + x.texto).join(NL);\nreturn {\n  json: {\n    run_id: conf.run_id,\n    topic_id: conf.topic_id,\n    class_url: conf.class_url,\n    class_video_path: conf.class_video_path,\n    cfg: conf.cfg,\n    ctx: { temario: section.join(NL), podcast: podcastText, official: $json.text }\n  }\n};"
+        }
+      },
+      {
+        "id": "eb02b5f1-0a3c-4e1f-909a-352fe047922c",
+        "name": "Prompt dividir en ideas",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2000,
+          160
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "language": "javaScript",
+          "jsCode": "const s = $json;\nconst NL = String.fromCharCode(10);\nconst system = 'Eres editor pedagógico de AccesoPro (preparación de pruebas de acceso para adultos). Divides un tema de Matemáticas de Grado Superior (Comunidad Valenciana) en ideas independientes y accionables para vídeos cortos de 30 a 60 segundos. Cada idea es UN concepto, regla o error típico concreto que se pueda explicar con UN ejemplo numérico sencillo. Las ideas no pueden repetirse ni compartir ejemplo numérico entre sí. Usa solo contenido presente en el temario y en el guion de podcast.';\nconst user = 'TEMARIO ACCESOPRO DEL TEMA:' + NL + s.ctx.temario + NL + NL + 'GUION DE PODCAST DEL TEMA (contenido ya elaborado):' + NL + s.ctx.podcast + NL + NL + 'Divide el tema en exactamente ' + s.cfg.n_scripts + ' ideas DISTINTAS que, juntas, cubran TODOS los apartados del temario: operaciones (puedes dedicar una idea a las fracciones y otra al orden de las operaciones y las potencias), ordenación y representación en la recta, y propiedades de los números reales (conmutativa, distributiva, factor común). Cada idea debe tener un ejemplo propio distinto del de las demás. Prioriza errores típicos de examen. Entrega las ideas con la herramienta.';\nconst tool = {\n  name: 'entregar_ideas',\n  description: 'Entrega la lista de ideas para vídeos cortos',\n  input_schema: {\n    type: 'object',\n    properties: {\n      ideas: {\n        type: 'array',\n        items: {\n          type: 'object',\n          properties: {\n            titulo: { type: 'string', description: 'Título interno corto de la idea' },\n            apartado_temario: { type: 'string', description: 'Apartado del temario que cubre' },\n            puntos_clave: { type: 'array', items: { type: 'string' }, description: 'Puntos clave que deben aparecer' },\n            error_tipico: { type: 'string', description: 'Error típico de examen relacionado' }\n          },\n          required: ['titulo', 'apartado_temario', 'puntos_clave', 'error_tipico']\n        }\n      }\n    },\n    required: ['ideas']\n  }\n};\nconst req = { model: s.cfg.writer_model, max_tokens: 2000, temperature: 0.3, system: system, messages: [{ role: 'user', content: user }], tools: [tool], tool_choice: { type: 'tool', name: 'entregar_ideas' } };\nreturn { json: Object.assign({}, s, { req: req }) };"
+        }
+      },
+      {
+        "id": "a37118d8-b946-4cde-b0aa-d95f56af9a8d",
+        "name": "Claude · Dividir tema en ideas",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2220,
+          160
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "credentials": {
+          "anthropicApi": {
+            "id": "olVcoY7AU7oJpytv",
+            "name": "Anthropic account - accesopro-n8n"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      },
+      {
+        "id": "9677d4ef-fd76-41ae-97f5-2c9ad003a0d9",
+        "name": "Interpretar ideas → piezas de guion",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2440,
+          160
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const s = $('Prompt dividir en ideas').first().json;\nconst r = $input.first().json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use');\nif (!block) throw new Error('Claude no devolvió las ideas');\nconst ideas = block.input.ideas.slice(0, s.cfg.n_scripts);\nconst u = r.usage || {};\nconst cost = ((u.input_tokens || 0) * s.cfg.price_writer_in + (u.output_tokens || 0) * s.cfg.price_writer_out) / 1000000;\nconst tag = s.topic_id.replace('_', '');\nreturn ideas.map((idea, i) => ({\n  json: {\n    piece_id: tag + '-idea-' + (i + 1),\n    run_id: s.run_id,\n    kind: 'script',\n    title: idea.titulo,\n    source_ref: s.topic_id + ' · ' + idea.apartado_temario,\n    attempts: 0,\n    idea: idea,\n    ctx: s.ctx,\n    cfg: s.cfg,\n    costs: { llm: cost / ideas.length, voice: 0, stt: 0 }\n  }\n}));"
+        }
+      },
+      {
+        "id": "3b8ec1a9-7b7b-4256-b39e-cd5bc58c99b9",
+        "name": "Unir piezas de texto y de clase",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          4000,
+          400
+        ],
+        "parameters": {
+          "mode": "append"
+        }
+      },
+      {
+        "id": "9e2576b6-aa5e-4b4f-8d89-8ab783bdd93b",
+        "name": "yt-dlp · Descargar clase grabada",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          2000,
+          640
+        ],
+        "parameters": {
+          "executeOnce": true,
+          "command": "=sh /data/scripts/download.sh \"{{ $json.class_url }}\" {{ $json.class_video_path }}"
+        }
+      },
+      {
+        "id": "f80a9361-332c-454c-948c-95f6bf0d489c",
+        "name": "FFmpeg · Extraer audio en trozos",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          2220,
+          640
+        ],
+        "parameters": {
+          "executeOnce": true,
+          "command": "=sh /data/scripts/prepare_audio.sh {{ $('Construir contexto').item.json.class_video_path }} /data/audio/clase {{ $('Construir contexto').item.json.cfg.chunk_seconds }}"
+        }
+      },
+      {
+        "id": "1e198079-5484-441b-80eb-58c534c225cc",
+        "name": "Listar trozos de audio",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2440,
+          640
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const chunks = JSON.parse($input.first().json.stdout);\nreturn chunks.map((c) => ({ json: { file: c.file, offset: c.offset } }));"
+        }
+      },
+      {
+        "id": "f88ba8ab-25f6-4a7c-91cf-90e6a139055e",
+        "name": "Leer trozo de audio",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          2660,
+          640
+        ],
+        "parameters": {
+          "operation": "read",
+          "fileSelector": "={{ $json.file }}",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        }
+      },
+      {
+        "id": "4db71362-8f06-44e2-8a0f-037e6a425e26",
+        "name": "Whisper · Transcribir trozo",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2880,
+          640
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.openai.com/v1/audio/transcriptions",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "openAiApi",
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "parameterType": "formBinaryData",
+                "name": "file",
+                "inputDataFieldName": "data"
+              },
+              {
+                "name": "model",
+                "value": "whisper-1"
+              },
+              {
+                "name": "language",
+                "value": "es"
+              },
+              {
+                "name": "response_format",
+                "value": "verbose_json"
+              },
+              {
+                "name": "timestamp_granularities[]",
+                "value": "word"
+              },
+              {
+                "name": "timestamp_granularities[]",
+                "value": "segment"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 600000
+          }
+        },
+        "credentials": {
+          "openAiApi": {
+            "id": "wET6G1CZvBwY8pf1",
+            "name": "OpenAI account - n8n-accesopro"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 10000
+      },
+      {
+        "id": "7b7542e0-0aab-455b-98a3-c6708f2e5759",
+        "name": "Unir transcripción con marcas de tiempo",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3100,
+          640
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const ctx = $('Construir contexto').first().json;\nconst chunks = $('Listar trozos de audio').all();\nconst results = $input.all();\nconst segments = [];\nconst words = [];\nlet minutes = 0;\nresults.forEach((it, i) => {\n  const off = chunks[i].json.offset;\n  const r = it.json;\n  (r.segments || []).forEach((sg) => segments.push({ start: sg.start + off, end: sg.end + off, text: String(sg.text).trim() }));\n  (r.words || []).forEach((w) => words.push({ w: String(w.word).trim(), s: w.start + off, e: w.end + off }));\n  minutes += (r.duration || 0) / 60;\n});\nreturn [{ json: { run_id: ctx.run_id, topic_id: ctx.topic_id, class_video_path: ctx.class_video_path, cfg: ctx.cfg, ctx: ctx.ctx, segments: segments, words: words, duration_min: minutes, stt_cost: minutes * ctx.cfg.price_whisper_per_min } }];"
+        }
+      },
+      {
+        "id": "1d7b19b1-e162-4268-915f-d05c2b5ed424",
+        "name": "Prompt detectar momentos con valor propio",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3320,
+          640
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "language": "javaScript",
+          "jsCode": "const s = $('Unir transcripción con marcas de tiempo').first().json;\nconst rows = $('Tabla · leer rangos ya usados').all().map((i) => i.json).filter((r) => r && r.piece_id && r.kind === 'clip' && (r.status === 'publicada' || r.status === 'rechazada'));\nconst NL = String.fromCharCode(10);\nconst toSec = (x) => { const q = x.split(':'); return Number(q[0]) * 60 + Number(q[1]); };\nconst avoid = rows.map((r) => { const m = String(r.source_ref || '').split(' ')[1]; if (!m || m.indexOf('-') < 0) return null; const p = m.split('-'); return toSec(p[0]) + '-' + toSec(p[1]) + ' s'; }).filter((x) => x);\nconst transcript = s.segments.map((sg) => '[' + Math.round(sg.start) + 's] ' + sg.text).join(NL);\nconst system = 'Eres editor pedagógico de AccesoPro. Recibes la transcripción con marcas de tiempo (segundos) de una clase en directo de Matemáticas (acceso a Grado Superior, Comunidad Valenciana) y debes elegir los momentos que funcionen como clips independientes para YouTube. Criterio PEDAGÓGICO, no cortes por tiempo: elige (a) explicaciones completas de un concepto o procedimiento, (b) trucos de examen, (c) errores típicos que la profesora señala. REQUISITOS DE CADA CLIP: 1) Debe entenderse SIN el resto de la clase: empieza en una frase completa que presente la idea (nunca en mitad de frase, ni con conectores como y, pero, entonces, ni con referencias a lo de antes, al ejercicio anterior o a la pantalla sin explicar) y termina cuando la idea queda cerrada. 2) Debe ser matemáticamente correcto: descarta fragmentos con errores sin corregir, dudas, autocorrecciones del profesor o afirmaciones absolutas incorrectas; antes de elegir un clip, comprueba tú mismo los cálculos y las reglas que se dicen en él. 3) Descarta saludos, cuestiones técnicas, organización de la clase y charla sin contenido. 4) Duración de cada clip: entre ' + s.cfg.clip_min_seconds + ' y ' + s.cfg.clip_max_seconds + ' segundos. 5) Sin solapes entre clips y REPARTIDOS por toda la clase (busca candidatos en todas las partes, no solo al principio). Usa los tiempos exactos de la transcripción y escoge el inicio en el segundo donde empieza la frase.';\nconst evitar = avoid.length ? NL + NL + 'RANGOS YA USADOS O RECHAZADOS (no los repitas ni te solapes con ellos): ' + avoid.join(', ') : '';\nconst user = 'TEMARIO ACCESOPRO DEL TEMA:' + NL + s.ctx.temario + NL + NL + 'TRANSCRIPCIÓN DE LA CLASE:' + NL + transcript + evitar + NL + NL + 'Elige entre ' + s.cfg.clips_min + ' y ' + s.cfg.clips_max + ' momentos NUEVOS y entrégalos con la herramienta.';\nconst tool = {\n  name: 'entregar_momentos',\n  description: 'Entrega los momentos seleccionados',\n  input_schema: {\n    type: 'object',\n    properties: {\n      momentos: {\n        type: 'array',\n        items: {\n          type: 'object',\n          properties: {\n            inicio_seg: { type: 'number', description: 'Segundo de inicio del clip' },\n            fin_seg: { type: 'number', description: 'Segundo de fin del clip' },\n            tipo: { type: 'string', enum: ['explicacion_completa', 'truco_de_examen', 'error_tipico'] },\n            titulo: { type: 'string', description: 'Título interno corto' },\n            justificacion: { type: 'string', description: 'Por qué tiene valor propio y se entiende sin el resto de la clase' }\n          },\n          required: ['inicio_seg', 'fin_seg', 'tipo', 'titulo', 'justificacion']\n        }\n      }\n    },\n    required: ['momentos']\n  }\n};\nconst req = { model: s.cfg.writer_model, max_tokens: 3500, temperature: 0.2, system: system, messages: [{ role: 'user', content: user }], tools: [tool], tool_choice: { type: 'tool', name: 'entregar_momentos' } };\nreturn { json: Object.assign({}, s, { req: req }) };"
+        }
+      },
+      {
+        "id": "c0a113f5-dd35-40fb-beb0-71b47450c04b",
+        "name": "Claude · Detectar momentos",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          3540,
+          640
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "credentials": {
+          "anthropicApi": {
+            "id": "olVcoY7AU7oJpytv",
+            "name": "Anthropic account - accesopro-n8n"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      },
+      {
+        "id": "dd7c3813-b45b-4953-b114-fcefc25e68d3",
+        "name": "Interpretar momentos → piezas de clip",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3760,
+          640
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const s = $('Prompt detectar momentos con valor propio').first().json;\nconst r = $input.first().json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use');\nif (!block) throw new Error('Claude no devolvió los momentos');\nconst u = r.usage || {};\nconst cost = ((u.input_tokens || 0) * s.cfg.price_writer_in + (u.output_tokens || 0) * s.cfg.price_writer_out) / 1000000;\nconst segs = s.segments;\nconst words = s.words;\nconst endsSentence = (t) => /[.?!]$/.test(String(t).trim());\nconst idxAt = (t) => {\n  let best = 0;\n  let bestD = Infinity;\n  segs.forEach((sg, i) => {\n    const d = t >= sg.start && t <= sg.end ? 0 : Math.min(Math.abs(t - sg.start), Math.abs(t - sg.end));\n    if (d < bestD) { bestD = d; best = i; }\n  });\n  return best;\n};\nconst moments = block.input.momentos.slice().sort((a, b) => a.inicio_seg - b.inicio_seg);\nconst valid = [];\nlet lastEnd = -1;\nfor (const m of moments) {\n  let start = Number(m.inicio_seg);\n  let end = Number(m.fin_seg);\n  if (!(end > start)) continue;\n  const i0 = idxAt(start);\n  let j = i0;\n  let bestJ = -1;\n  let bestDist = Infinity;\n  for (let k = Math.max(0, i0 - 3); k <= Math.min(segs.length - 1, i0 + 3); k++) {\n    const startsSentence = k === 0 || endsSentence(segs[k - 1].text);\n    if (startsSentence && Math.abs(segs[k].start - start) <= 15 && Math.abs(k - i0) < bestDist) { bestDist = Math.abs(k - i0); bestJ = k; }\n  }\n  if (bestJ >= 0) j = bestJ;\n  start = segs[j].start;\n  let e0 = idxAt(end);\n  let guard = 0;\n  while (e0 < segs.length - 1 && !endsSentence(segs[e0].text) && guard < 4) { e0++; guard++; }\n  while (e0 > j && segs[e0].end - start > s.cfg.clip_max_seconds - 1) { e0--; while (e0 > j && !endsSentence(segs[e0].text)) e0--; }\n  end = segs[e0].end;\n  start = Math.max(0, start - 0.15);\n  end = end + 0.3;\n  const dur = end - start;\n  if (dur < s.cfg.clip_min_seconds || dur > s.cfg.clip_max_seconds) continue;\n  if (start < lastEnd) continue;\n  lastEnd = end;\n  valid.push({ m: m, start: start, end: end });\n}\nconst chosen = valid.slice(0, s.cfg.clips_max);\nconst two = (n) => String(Math.floor(n)).padStart(2, '0');\nconst mmss = (t) => Math.floor(t / 60) + ':' + two(t % 60);\nreturn chosen.map((v) => {\n  const cw = words.filter((w) => w.s >= v.start - 0.05 && w.e <= v.end + 0.05).map((w) => ({ w: w.w, s: Math.max(0, w.s - v.start), e: Math.max(0, w.e - v.start) }));\n  const text = segs.filter((sg) => sg.end > v.start && sg.start < v.end).map((sg) => sg.text).join(' ');\n  return {\n    json: {\n      piece_id: 'CLASE-' + two(v.start / 60) + two(v.start % 60),\n      run_id: s.run_id,\n      kind: 'clip',\n      title: v.m.titulo,\n      source_ref: 'clase ' + mmss(v.start) + '-' + mmss(v.end) + ' · ' + v.m.tipo,\n      attempts: 0,\n      text: text,\n      clip: { start: v.start, end: v.end, type: v.m.tipo, title: v.m.titulo, justificacion: v.m.justificacion, words: cw, source_video: s.class_video_path },\n      ctx: { temario: s.ctx.temario, podcast: '', official: s.ctx.official },\n      cfg: s.cfg,\n      costs: { llm: cost / chosen.length, voice: 0, stt: s.stt_cost / chosen.length }\n    }\n  };\n});"
+        }
+      },
+      {
+        "id": "07c891a3-25d1-426b-a4b2-f46cfaeffabe",
+        "name": "Tabla · leer estado actual",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          4220,
+          400
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "get",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "returnAll": true
+        },
+        "executeOnce": true,
+        "alwaysOutputData": true
+      },
+      {
+        "id": "01cb3950-529c-43c2-a3fa-4ad66ef66d3f",
+        "name": "Filtrar pendientes (sin duplicados, presupuesto y cuota)",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4440,
+          400
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const pieces = $('Unir piezas de texto y de clase').all().map((i) => i.json);\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.piece_id);\nif (!pieces.length) return [];\nconst cfg = pieces[0].cfg;\nconst force = cfg.force_ids || [];\nconst today = new Date().toISOString().slice(0, 10);\nconst todayRows = rows.filter((r) => String(r.updatedAt || '').slice(0, 10) === today);\nconst spent = todayRows.reduce((a, r) => a + (Number(r.cost_total_usd) || 0), 0);\nif (spent >= cfg.daily_budget_usd) return [];\nconst toSec = (x) => { const q = x.split(':'); return Number(q[0]) * 60 + Number(q[1]); };\nconst rng = (ref) => { const m = String(ref || '').split(' ')[1]; if (!m || m.indexOf('-') < 0) return null; const p = m.split('-'); const a = toSec(p[0]); const b = toSec(p[1]); return isNaN(a) || isNaN(b) ? null : [a, b]; };\nconst overlap = (a, b) => Math.max(0, Math.min(a[1], b[1]) - Math.max(a[0], b[0])) / Math.min(a[1] - a[0], b[1] - b[0]);\nconst usedRanges = rows.filter((r) => r.kind === 'clip' && (r.status === 'publicada' || r.status === 'rechazada')).map((r) => rng(r.source_ref)).filter((x) => x);\nconst repeatedClip = (p) => { if (p.kind !== 'clip') return false; const a = rng(p.source_ref); return !!a && usedRanges.some((b) => overlap(a, b) > 0.5); };\nconst prev = {};\nrows.forEach((r) => { prev[r.piece_id] = r; });\nconst published = {};\nrows.forEach((r) => { if (r.status === 'publicada' && force.indexOf(r.piece_id) < 0) published[r.piece_id] = true; });\nconst pending = pieces.filter((p) => !published[p.piece_id] && !repeatedClip(p)).map((p) => {\n  const r = prev[p.piece_id];\n  if (!r) return p;\n  const c = p.costs;\n  return Object.assign({}, p, { costs: { llm: c.llm + (Number(r.cost_llm_usd) || 0), voice: c.voice + (Number(r.cost_voice_usd) || 0), stt: c.stt + (Number(r.cost_stt_usd) || 0) } });\n});\nconst scripts = pending.filter((p) => p.kind === 'script');\nconst clips = pending.filter((p) => p.kind === 'clip');\nconst pubClips = rows.filter((r) => r.status === 'publicada' && r.kind === 'clip').length;\nconst pubScripts = rows.filter((r) => r.status === 'publicada' && r.kind === 'script').length;\nconst clipsFirst = pubClips < pubScripts;\nlet mixed = [];\nfor (let i = 0; i < Math.max(scripts.length, clips.length); i++) {\n  if (clipsFirst) {\n    if (clips[i]) mixed.push(clips[i]);\n    if (scripts[i]) mixed.push(scripts[i]);\n  } else {\n    if (scripts[i]) mixed.push(scripts[i]);\n    if (clips[i]) mixed.push(clips[i]);\n  }\n}\nif (cfg.publish_enabled) {\n  const uploadedToday = todayRows.filter((r) => r.status === 'publicada' && force.indexOf(r.piece_id) < 0).length;\n  mixed = mixed.slice(0, Math.max(0, cfg.max_uploads_per_day - uploadedToday + 1));\n}\nreturn mixed.slice(0, cfg.max_pieces_per_run).map((p) => ({ json: p }));"
+        }
+      },
+      {
+        "id": "86b75e75-3eda-4045-9144-a1c86d63ef04",
+        "name": "Producir pieza (sub-workflow)",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          4660,
+          400
+        ],
+        "parameters": {
+          "mode": "each",
+          "source": "database",
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "51LKiP45V4ddH2CW"
+          },
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "2fccfc06-55b4-4e4c-9f1e-52b94761d377",
+        "name": "Tabla · leer para resumen",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          4900,
+          400
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "get",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "returnAll": true
+        },
+        "executeOnce": true,
+        "alwaysOutputData": true
+      },
+      {
+        "id": "e248fe61-b046-44b3-bd30-d3ee3aa657ab",
+        "name": "Resumen de la ejecución",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          5120,
+          400
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r && r.piece_id);\nconst count = {};\nlet cost = 0;\nrows.forEach((r) => { count[r.status] = (count[r.status] || 0) + 1; cost += Number(r.cost_total_usd) || 0; });\nreturn [{ json: { piezas: rows.length, por_estado: count, coste_total_usd: Math.round(cost * 10000) / 10000, filas: rows.map((r) => ({ id: r.piece_id, tipo: r.kind, estado: r.status, coste_usd: r.cost_total_usd, url: r.youtube_url, motivo: r.review_reason })) } }];"
+        }
+      },
+      {
+        "id": "d98f8828-9776-40c1-be8d-8d69ab49b27a",
+        "name": "Tabla · registrar error",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          4900,
+          600
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "upsert",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "piece_id",
+                "condition": "eq",
+                "keyValue": "={{ $json.piece_id }}"
+              }
+            ]
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "piece_id": "={{ $json.piece_id }}",
+              "run_id": "={{ $json.run_id }}",
+              "kind": "={{ $json.kind }}",
+              "title": "={{ $json.title }}",
+              "status": "error",
+              "source_ref": "={{ $json.source_ref }}",
+              "error": "={{ String($json.error && $json.error.message ? $json.error.message : $json.error).slice(0, 900) }}",
+              "review_verdict": "sin veredicto",
+              "review_reason": "Fallo técnico durante la producción; ver campo error",
+              "attempts": "={{ $json.attempts || 0 }}"
+            },
+            "matchingColumns": [
+              "piece_id"
+            ],
+            "schema": [
+              {
+                "id": "piece_id",
+                "displayName": "piece_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "run_id",
+                "displayName": "run_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "kind",
+                "displayName": "kind",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "title",
+                "displayName": "title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_verdict",
+                "displayName": "review_verdict",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_reason",
+                "displayName": "review_reason",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "attempts",
+                "displayName": "attempts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "source_ref",
+                "displayName": "source_ref",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "error",
+                "displayName": "error",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "14a1a7e7-ed8f-4f03-96f6-4ca369286815",
+        "name": "Tabla · leer rangos ya usados",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          3210,
+          640
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "get",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "returnAll": true
+        },
+        "alwaysOutputData": true,
+        "executeOnce": true
+      }
+    ],
+    "connections": {
+      "Lanzar motor de vídeo": {
+        "main": [
+          [
+            {
+              "node": "Configuración",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Configuración": {
+        "main": [
+          [
+            {
+              "node": "Leer temario AccesoPro (TXT)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer temario AccesoPro (TXT)": {
+        "main": [
+          [
+            {
+              "node": "Extraer texto del temario",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraer texto del temario": {
+        "main": [
+          [
+            {
+              "node": "Leer podcast del tema (JSON)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer podcast del tema (JSON)": {
+        "main": [
+          [
+            {
+              "node": "Extraer JSON del podcast",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraer JSON del podcast": {
+        "main": [
+          [
+            {
+              "node": "Leer temario oficial (PDF)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer temario oficial (PDF)": {
+        "main": [
+          [
+            {
+              "node": "Extraer texto del PDF oficial",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraer texto del PDF oficial": {
+        "main": [
+          [
+            {
+              "node": "Construir contexto",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Construir contexto": {
+        "main": [
+          [
+            {
+              "node": "Prompt dividir en ideas",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "yt-dlp · Descargar clase grabada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt dividir en ideas": {
+        "main": [
+          [
+            {
+              "node": "Claude · Dividir tema en ideas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude · Dividir tema en ideas": {
+        "main": [
+          [
+            {
+              "node": "Interpretar ideas → piezas de guion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar ideas → piezas de guion": {
+        "main": [
+          [
+            {
+              "node": "Unir piezas de texto y de clase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Unir piezas de texto y de clase": {
+        "main": [
+          [
+            {
+              "node": "Tabla · leer estado actual",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "yt-dlp · Descargar clase grabada": {
+        "main": [
+          [
+            {
+              "node": "FFmpeg · Extraer audio en trozos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "FFmpeg · Extraer audio en trozos": {
+        "main": [
+          [
+            {
+              "node": "Listar trozos de audio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Listar trozos de audio": {
+        "main": [
+          [
+            {
+              "node": "Leer trozo de audio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer trozo de audio": {
+        "main": [
+          [
+            {
+              "node": "Whisper · Transcribir trozo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Whisper · Transcribir trozo": {
+        "main": [
+          [
+            {
+              "node": "Unir transcripción con marcas de tiempo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt detectar momentos con valor propio": {
+        "main": [
+          [
+            {
+              "node": "Claude · Detectar momentos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude · Detectar momentos": {
+        "main": [
+          [
+            {
+              "node": "Interpretar momentos → piezas de clip",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar momentos → piezas de clip": {
+        "main": [
+          [
+            {
+              "node": "Unir piezas de texto y de clase",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Tabla · leer estado actual": {
+        "main": [
+          [
+            {
+              "node": "Filtrar pendientes (sin duplicados, presupuesto y cuota)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtrar pendientes (sin duplicados, presupuesto y cuota)": {
+        "main": [
+          [
+            {
+              "node": "Producir pieza (sub-workflow)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Producir pieza (sub-workflow)": {
+        "main": [
+          [
+            {
+              "node": "Tabla · leer para resumen",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Tabla · registrar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tabla · leer para resumen": {
+        "main": [
+          [
+            {
+              "node": "Resumen de la ejecución",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Unir transcripción con marcas de tiempo": {
+        "main": [
+          [
+            {
+              "node": "Tabla · leer rangos ya usados",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tabla · leer rangos ya usados": {
+        "main": [
+          [
+            {
+              "node": "Prompt detectar momentos con valor propio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "5b8a68b7-d1c6-4710-9c6b-ca8107064a09",
+    "activeVersionId": null,
+    "versionCounter": 11,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-10-31T17:42:20.903Z",
+        "createdAt": "2026-10-31T17:42:20.903Z",
+        "role": "workflow:owner",
+        "workflowId": "GNbdK23ubKDJGzSb",
+        "projectId": "bgNOGMqVGHjShW1N",
+        "project": {
+          "updatedAt": "2026-10-31T14:08:15.204Z",
+          "createdAt": "2026-10-31T14:04:05.259Z",
+          "id": "bgNOGMqVGHjShW1N",
+          "name": "Christian Aranguiz <chnicolas.aranguiz@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "1ca18af4-cdf3-4430-bbd6-e4e5abd3a890"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Fila de error con veredicto y motivo",
+      "description": "Updated nodes: Tabla · registrar error"
+    }
+  }
+]

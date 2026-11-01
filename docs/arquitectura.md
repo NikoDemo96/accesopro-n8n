@@ -3,9 +3,10 @@
 ## Cómo está construido hoy
 
 ```
-Disparador único (n8n)
- ├─ Rama texto:  temario + podcast + PDF oficial ─► Claude: ideas ─► piezas "guion"
- └─ Rama clase:  yt-dlp ─► FFmpeg (audio) ─► Whisper ─► Claude: momentos ─► piezas "clip"
+Formulario (enlace de la clase + comunidad, prueba y asignatura)
+  yt-dlp ─► FFmpeg (audio) ─► Whisper ─► Claude deduce el tema (sub-bloque del temario)
+   ├─ Rama texto:  temario del tema (+ apoyo opcional) ─► Claude: ideas ─► piezas "guion"
+   └─ Rama clase:  Claude: momentos ─► ajuste a frases ─► piezas "clip"
                       │
         tabla de control (estado, costes) ─► filtro: sin duplicados, presupuesto, cuota
                       │
@@ -13,7 +14,7 @@ Disparador único (n8n)
         ─► metadatos ─► [ElevenLabs voz] ─► FFmpeg 9:16 y 16:9 + miniatura ─► YouTube ─► tabla
 ```
 
-Tres workflows de n8n (principal, producción de pieza, revisor), tres scripts de medios y una _data table_ como estado. Un fallo en una pieza no detiene el resto y queda registrado.
+Tres workflows de n8n (principal con formulario, producción de pieza, revisor), scripts de medios y una _data table_ como estado. Los temarios viven en una biblioteca por comunidad, prueba y asignatura (`data/temarios/`), así que para una clase nueva solo hace falta su enlace. Un fallo en una pieza no detiene el resto y queda registrado.
 
 ## Coste por vídeo (medido)
 
@@ -25,7 +26,7 @@ Tres workflows de n8n (principal, producción de pieza, revisor), tres scripts d
 | Whisper (reparto de 1 h de clase) | —                 | ≈ 0,06 $ (0,35 $ / 6) |
 | **Total por pieza producida**     | **≈ 0,18-0,24 $** | **≈ 0,08-0,10 $**     |
 
-Con las tasas de la prueba (4 de 4 guiones aprobados; 3 de 12 clips), el coste efectivo por **clip publicado** es unas 4 veces el unitario (≈ 0,35 $), porque el rechazo también cuesta. Estimación para 1.000 vídeos al mes (mitad guiones, mitad clips): **≈ 150-250 $ al mes**, dominado por ElevenLabs y por los candidatos de clip rechazados. YouTube no cobra por subir.
+Con las tasas de la prueba (5 de 5 guiones aprobados; 3 de 22 clips), el coste efectivo por **clip publicado** es unas 7 veces el unitario (≈ 0,5 $), porque el rechazo también cuesta. Estimación para 1.000 vídeos al mes (mitad guiones, mitad clips): **≈ 150-350 $ al mes** según la calidad de las clases, dominado por ElevenLabs y por los candidatos de clip rechazados. YouTube no cobra por subir.
 
 ## Cuellos de botella previstos
 
@@ -51,4 +52,6 @@ Con las tasas de la prueba (4 de 4 guiones aprobados; 3 de 12 clips), el coste e
 
 ## Siguientes pasos para escalar
 
-Cola con workers → PostgreSQL con idempotencia por clave → caché de transcripciones → revisor con recuperación de fragmentos validados → variantes A/B de gancho y bucle de aprendizaje con YouTube Analytics → adaptación por comunidad reutilizando lo común del temario.
+**Cola de trabajos** (una fila por clase en una tabla, con horario o formulario por lotes) → PostgreSQL con idempotencia por clave → caché de transcripciones → revisor con recuperación de fragmentos validados → variantes A/B de gancho y bucle de aprendizaje con YouTube Analytics → adaptación por comunidad reutilizando lo común del temario.
+
+**Pregunta abierta para la academia:** qué material existe ya organizado por comunidad, prueba y asignatura (temario propio, temario oficial, material de apoyo). Si ya lo tienen cargado, una clase nueva solo necesita su enlace; si no, hay que pedirlo.
