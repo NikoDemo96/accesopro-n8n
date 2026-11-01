@@ -10,7 +10,6 @@ data/audio/
 data/video/
 data/thumbs/
 data/clips/
-data/tabla_de_control.csv
 
 # Temporales
 data/_*.json

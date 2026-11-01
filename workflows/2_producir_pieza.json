@@ -1,0 +1,1704 @@
+[
+  {
+    "updatedAt": "2026-11-01T06:16:56.908Z",
+    "createdAt": "2026-10-31T17:29:02.740Z",
+    "id": "51LKiP45V4ddH2CW",
+    "name": "AccesoPro · Producir pieza (guion/clip → revisión → voz → vídeo → YouTube)",
+    "description": "Sub-workflow: escribe guion (Claude) o recibe clip, lo revisa (agente revisor), corrige una vez, genera voz clonada, monta 9:16 y 16:9, publica no listado en YouTube y registra estado/coste.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "inputSource": "passthrough"
+        },
+        "id": "14ab776b-84e2-47e5-bfed-f26aea46dc20",
+        "name": "Recibe pieza",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.kind }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                },
+                "rightValue": "script"
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "e9936070-bd4b-4213-ab1b-8914fc3d65d3",
+        "name": "¿Es guion de texto?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          224,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst NL = String.fromCharCode(10);\nconst idea = s.idea;\nconst system = 'Eres guionista de microvídeos educativos de AccesoPro, que prepara a personas adultas para las pruebas de acceso a Grado Superior (Matemáticas, Comunidad Valenciana). Escribes en español de España, con tono cercano, claro y motivador, tuteando al alumno. REGLAS: 1) Usa SOLO contenido y cifras que aparezcan en el temario o en el guion de podcast que te doy como fuente; no inventes datos, normas, estadísticas ni ejemplos que no puedas comprobar. 2) Cada operación matemática que escribas debe ser correcta: calcúla paso a paso antes de escribirla y usa ejemplos sencillos. 3) El texto se leerá en voz alta: escribe todo como se pronuncia (por ejemplo \"cinco sextos\", \"dos elevado a menos tres\", \"equis\"), sin símbolos matemáticos, sin markdown y sin emojis. 4) Estructura: GANCHO (1-2 frases, máximo 8 segundos, abre con un error típico, una pregunta o una promesa concreta), EXPLICACIÓN (clara y ordenada, con un solo ejemplo numérico), CIERRE (1 frase con llamada a la acción: practica este tema con los cursos de AccesoPro y sigue el canal). 5) DURACIÓN ESTRICTA: el vídeo debe durar entre 35 y 55 segundos al ritmo de lectura, es decir, entre 85 y 115 palabras EN TOTAL (gancho, explicación y cierre juntos). Nunca superes las 115 palabras: cuenta las palabras antes de entregar y recorta si hace falta. 6) Centra el vídeo únicamente en la idea que te asigno; no repitas ejemplos de otras ideas.';\nconst user = 'TEMARIO ACCESOPRO DEL TEMA:' + NL + s.ctx.temario + NL + NL + 'FUENTE ELABORADA (guion de podcast del mismo tema):' + NL + s.ctx.podcast + NL + NL + 'IDEA A DESARROLLAR: ' + idea.titulo + NL + 'Apartado del temario: ' + (idea.apartado_temario || '') + NL + 'Puntos clave: ' + (idea.puntos_clave || []).join('; ') + NL + 'Error típico a destacar: ' + (idea.error_tipico || 'ninguno') + NL + NL + 'Entrega el guion con la herramienta.';\nconst tool = {\n  name: 'entregar_guion',\n  description: 'Entrega el guion final del vídeo dividido en gancho, explicación y cierre',\n  input_schema: {\n    type: 'object',\n    properties: {\n      gancho: { type: 'string', description: 'Gancho inicial, 1-2 frases' },\n      explicacion: { type: 'string', description: 'Explicación con ejemplo numérico correcto' },\n      cierre: { type: 'string', description: 'Cierre con llamada a la acción' }\n    },\n    required: ['gancho', 'explicacion', 'cierre']\n  }\n};\nconst req = { model: s.cfg.writer_model, max_tokens: 1500, temperature: 0.4, system: system, messages: [{ role: 'user', content: user }], tools: [tool], tool_choice: { type: 'tool', name: 'entregar_guion' } };\nreturn { json: Object.assign({}, s, { req: req, costs: s.costs || { llm: 0, voice: 0, stt: 0 }, attempts: s.attempts || 0 }) };",
+          "language": "javaScript"
+        },
+        "id": "cae56973-2545-4675-8a74-ffc5bd5eabd2",
+        "name": "Prompt guion",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "id": "786ef0ae-f4bd-4ad5-86ad-440e3f701040",
+        "name": "Claude · Escribir guion",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          704,
+          240
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "credentials": {
+          "anthropicApi": {
+            "id": "olVcoY7AU7oJpytv",
+            "name": "Anthropic account - accesopro-n8n"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Prompt guion').item.json;\nconst r = $json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use');\nif (!block) throw new Error('Claude no devolvió el guion');\nconst g = block.input;\nconst u = r.usage || {};\nconst cost = ((u.input_tokens || 0) * s.cfg.price_writer_in + (u.output_tokens || 0) * s.cfg.price_writer_out) / 1000000;\nconst out = Object.assign({}, s);\ndelete out.req;\nout.script = { gancho: g.gancho, explicacion: g.explicacion, cierre: g.cierre };\nout.text = [g.gancho, g.explicacion, g.cierre].join(' ');\nout.word_count = out.text.split(' ').length;\nout.costs = { llm: (s.costs.llm || 0) + cost, voice: s.costs.voice || 0, stt: s.costs.stt || 0 };\nreturn { json: out };"
+        },
+        "id": "0281ac3d-398c-4510-9618-3e57148c605a",
+        "name": "Interpretar guion",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          944,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return { json: $json };"
+        },
+        "id": "3c6ce8b3-5875-4146-b6a4-9ba0dce96742",
+        "name": "Pieza generada",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1184,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "piece_id",
+                "keyValue": "={{ $json.piece_id }}"
+              }
+            ]
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "piece_id": "={{ $json.piece_id }}",
+              "run_id": "={{ $json.run_id }}",
+              "kind": "={{ $json.kind }}",
+              "title": "={{ $json.title }}",
+              "status": "generada",
+              "source_ref": "={{ $json.source_ref }}",
+              "script_text": "={{ $json.text }}",
+              "cost_llm_usd": "={{ $json.costs.llm }}"
+            },
+            "matchingColumns": [
+              "piece_id"
+            ],
+            "schema": [
+              {
+                "id": "piece_id",
+                "displayName": "piece_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "run_id",
+                "displayName": "run_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "kind",
+                "displayName": "kind",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "title",
+                "displayName": "title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_verdict",
+                "displayName": "review_verdict",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_reason",
+                "displayName": "review_reason",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "attempts",
+                "displayName": "attempts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_llm_usd",
+                "displayName": "cost_llm_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_voice_usd",
+                "displayName": "cost_voice_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_stt_usd",
+                "displayName": "cost_stt_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_total_usd",
+                "displayName": "cost_total_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "youtube_url",
+                "displayName": "youtube_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "source_ref",
+                "displayName": "source_ref",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "script_text",
+                "displayName": "script_text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "error",
+                "displayName": "error",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "4924e577-a779-415f-8b88-2fac7b945f7f",
+        "name": "Tabla · estado generada",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          1408,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return { json: $('Pieza generada').item.json };"
+        },
+        "id": "3a84e127-dbcf-4880-be8c-45cd325f9051",
+        "name": "Restaurar estado tras tabla",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1632,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "P6n0FqYmoOM6j6E2"
+          },
+          "mode": "each",
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "id": "f6ad049d-9e8b-4b3d-b941-747e7ea629c7",
+        "name": "Agente revisor · revisión 1",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          1840,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.approved }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "2cbb89e1-5f32-4ea7-8b59-aaea6515a033",
+        "name": "¿Aprobado en revisión 1?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2064,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return { json: Object.assign({}, $json, { review_verdict: 'aprobada' }) };"
+        },
+        "id": "eb8f8c38-35e5-4835-b763-273a0a72b4af",
+        "name": "Pieza aprobada",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3744,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.kind === 'script' && ($json.attempts || 0) < $json.cfg.max_corrections }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "32e9342c-f628-492b-813a-e42535fbced2",
+        "name": "¿Se puede corregir?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2304,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst NL = String.fromCharCode(10);\nconst system = 'Eres guionista de microvídeos educativos de AccesoPro (preparación de pruebas de acceso para adultos, Matemáticas de Grado Superior, Comunidad Valenciana). Un agente revisor ha RECHAZADO tu guion. Corrige exactamente los problemas señalados: recalcula cada operación, elimina o sustituye cualquier dato no respaldado por el temario, y mantén gancho, explicación y cierre, el tono cercano, el texto pronunciable (sin símbolos matemáticos) y una duración ESTRICTA de entre 85 y 115 palabras en total (nunca más de 115). No añadas contenido nuevo que no puedas respaldar.';\nconst user = 'TEMARIO OFICIAL:' + NL + s.ctx.official + NL + NL + 'TEMARIO ACCESOPRO DEL TEMA:' + NL + s.ctx.temario + NL + NL + 'GUION RECHAZADO:' + NL + 'GANCHO: ' + s.script.gancho + NL + 'EXPLICACIÓN: ' + s.script.explicacion + NL + 'CIERRE: ' + s.script.cierre + NL + NL + 'INFORME DEL REVISOR:' + NL + s.review_reason + NL + NL + 'Entrega el guion corregido con la herramienta.';\nconst tool = {\n  name: 'entregar_guion',\n  description: 'Entrega el guion corregido dividido en gancho, explicación y cierre',\n  input_schema: {\n    type: 'object',\n    properties: { gancho: { type: 'string' }, explicacion: { type: 'string' }, cierre: { type: 'string' } },\n    required: ['gancho', 'explicacion', 'cierre']\n  }\n};\nconst req = { model: s.cfg.writer_model, max_tokens: 1500, temperature: 0.2, system: system, messages: [{ role: 'user', content: user }], tools: [tool], tool_choice: { type: 'tool', name: 'entregar_guion' } };\nreturn { json: Object.assign({}, s, { req: req, attempts: (s.attempts || 0) + 1, script_rechazado: s.script }) };",
+          "language": "javaScript"
+        },
+        "id": "21f6cd75-6c89-454f-b0ff-949e46db7403",
+        "name": "Prompt corrección",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2544,
+          480
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "id": "d6eede8d-1085-4273-aea9-5da2d32d8694",
+        "name": "Claude · Corregir guion",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2784,
+          480
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "credentials": {
+          "anthropicApi": {
+            "id": "olVcoY7AU7oJpytv",
+            "name": "Anthropic account - accesopro-n8n"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Prompt corrección').item.json;\nconst r = $json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use');\nif (!block) throw new Error('Claude no devolvió el guion corregido');\nconst g = block.input;\nconst u = r.usage || {};\nconst cost = ((u.input_tokens || 0) * s.cfg.price_writer_in + (u.output_tokens || 0) * s.cfg.price_writer_out) / 1000000;\nconst out = Object.assign({}, s);\ndelete out.req;\nout.script = { gancho: g.gancho, explicacion: g.explicacion, cierre: g.cierre };\nout.text = [g.gancho, g.explicacion, g.cierre].join(' ');\nout.word_count = out.text.split(' ').length;\nout.costs = { llm: (s.costs.llm || 0) + cost, voice: s.costs.voice || 0, stt: s.costs.stt || 0 };\nreturn { json: out };"
+        },
+        "id": "6ce13cd5-f181-474f-97c6-f144fe6bf1f7",
+        "name": "Interpretar corrección",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3024,
+          480
+        ]
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "P6n0FqYmoOM6j6E2"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "mode": "each",
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "id": "7bffb396-3025-4ed4-b638-eee7508cb97b",
+        "name": "Agente revisor · revisión 2",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          3264,
+          480
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.approved }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "a39b2050-c8aa-4116-84df-9a2b73c98be2",
+        "name": "¿Aprobado en revisión 2?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          3504,
+          480
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst c = s.costs || { llm: 0, voice: 0, stt: 0 };\nconst final = {\n  piece_id: s.piece_id, run_id: s.run_id, kind: s.kind, title: s.title, status: 'rechazada', review_verdict: 'rechazada',\n  review_reason: s.review_reason, attempts: s.attempts || 0, cost_llm_usd: c.llm, cost_voice_usd: c.voice, cost_stt_usd: c.stt,\n  cost_total_usd: c.llm + c.voice + c.stt, youtube_url: '', source_ref: s.source_ref, script_text: s.text, error: ''\n};\nreturn { json: Object.assign({}, s, { final: final }) };"
+        },
+        "id": "b18a96a0-7b84-48f5-aa12-a2062660936c",
+        "name": "Resultado · rechazada",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3744,
+          704
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst NL = String.fromCharCode(10);\nconst system = 'Eres el responsable de YouTube de AccesoPro (preparación online de pruebas de acceso para adultos). Generas metadatos honestos, claros y útiles en español de España, sin clickbait engañoso y sin prometer aprobar el examen.';\nconst origen = s.kind === 'script' ? 'vídeo corto generado a partir del temario' : 'clip recortado de una clase en directo (' + ((s.clip && s.clip.type) || 'momento clave') + ')';\nconst user = 'Pieza: ' + origen + NL + 'Tema: Matemáticas, prueba de acceso a Grado Superior, Comunidad Valenciana. Título interno: ' + s.title + NL + 'Contenido hablado:' + NL + s.text + NL + NL + 'Genera: título (máximo 70 caracteres, concreto y con gancho), descripción (máximo 1200 caracteres: primeras dos líneas con el valor para el alumno, qué se explica, mención a AccesoPro y llamada a la acción, y 3-4 hashtags al final), 8 a 12 etiquetas y un texto corto para la miniatura (máximo 6 palabras).';\nconst tool = {\n  name: 'entregar_metadatos',\n  description: 'Entrega los metadatos de YouTube',\n  input_schema: {\n    type: 'object',\n    properties: {\n      titulo: { type: 'string' },\n      descripcion: { type: 'string' },\n      etiquetas: { type: 'array', items: { type: 'string' } },\n      texto_miniatura: { type: 'string' }\n    },\n    required: ['titulo', 'descripcion', 'etiquetas', 'texto_miniatura']\n  }\n};\nconst req = { model: s.cfg.writer_model, max_tokens: 1200, temperature: 0.5, system: system, messages: [{ role: 'user', content: user }], tools: [tool], tool_choice: { type: 'tool', name: 'entregar_metadatos' } };\nreturn { json: Object.assign({}, s, { req: req }) };"
+        },
+        "id": "85d66a48-12fe-4997-bf48-e6afe0709908",
+        "name": "Prompt metadatos",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3984,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 120000
+          }
+        },
+        "id": "32abec80-3655-406e-9fc0-d766c3190c1f",
+        "name": "Claude · Metadatos de YouTube",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          4224,
+          288
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "credentials": {
+          "anthropicApi": {
+            "id": "olVcoY7AU7oJpytv",
+            "name": "Anthropic account - accesopro-n8n"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Prompt metadatos').item.json;\nconst r = $json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use');\nif (!block) throw new Error('Claude no devolvió los metadatos');\nconst m = block.input;\nconst u = r.usage || {};\nconst cost = ((u.input_tokens || 0) * s.cfg.price_writer_in + (u.output_tokens || 0) * s.cfg.price_writer_out) / 1000000;\nconst clean = (t) => String(t || '').split('<').join('').split('>').join('').trim();\nconst tags = [];\nlet total = 0;\n(m.etiquetas || []).forEach((t) => {\n  const c = clean(t).slice(0, 60);\n  if (c && total + c.length + 1 <= 400) { tags.push(c); total += c.length + 1; }\n});\nconst out = Object.assign({}, s);\ndelete out.req;\nout.yt = { titulo: clean(m.titulo).slice(0, 95), descripcion: clean(m.descripcion).slice(0, 4500), etiquetas: tags, texto_miniatura: clean(m.texto_miniatura).slice(0, 60) };\nout.costs = { llm: (s.costs.llm || 0) + cost, voice: s.costs.voice || 0, stt: s.costs.stt || 0 };\nreturn { json: out };",
+          "language": "javaScript"
+        },
+        "id": "2d339628-9ae7-4b97-ac95-72e5801e3746",
+        "name": "Interpretar metadatos",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4464,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.kind }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                },
+                "rightValue": "script"
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "0ea39c10-ad78-4d69-8881-9db596ab681c",
+        "name": "¿Necesita voz?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          4704,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst req = { text: s.text, model_id: s.cfg.tts_model, voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.2, use_speaker_boost: true, speed: 1.05 } };\nconst url = 'https://api.elevenlabs.io/v1/text-to-speech/' + s.cfg.voice_id + '/with-timestamps?output_format=mp3_44100_64';\nreturn { json: Object.assign({}, s, { req: req, tts_url: url }) };",
+          "language": "javaScript"
+        },
+        "id": "d6129abe-0dd3-4d1a-86b0-07f43c712663",
+        "name": "Prompt voz",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4944,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $json.tts_url }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.req }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "id": "39a4605b-a9ec-4b29-a4c6-20ef45777ffc",
+        "name": "ElevenLabs · Voz clonada con marcas de tiempo",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5184,
+          160
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 8000,
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "3LvjKBRih2yi0sOR",
+            "name": "ElevenLabs"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Prompt voz').item.json;\nconst r = $json;\nif (!r.audio_base64) throw new Error('ElevenLabs no devolvió audio');\nconst al = r.alignment || r.normalized_alignment;\nconst chars = al.characters;\nconst st = al.character_start_times_seconds;\nconst en = al.character_end_times_seconds;\nconst words = [];\nlet cur = '';\nlet ws = 0;\nlet we = 0;\nfor (let i = 0; i < chars.length; i++) {\n  const c = chars[i];\n  if (c === ' ' || c === String.fromCharCode(10) || c === String.fromCharCode(9)) {\n    if (cur) { words.push({ w: cur, s: ws, e: we }); cur = ''; }\n  } else {\n    if (!cur) ws = st[i];\n    cur += c;\n    we = en[i];\n  }\n}\nif (cur) words.push({ w: cur, s: ws, e: we });\nconst out = Object.assign({}, s);\ndelete out.req;\ndelete out.tts_url;\nout.audio_b64 = r.audio_base64;\nout.words = words;\nout.audio_seconds = en.length ? en[en.length - 1] : 0;\nout.audio_path = '/data/audio/' + s.piece_id + '.mp3';\nout.costs = { llm: s.costs.llm || 0, voice: (s.costs.voice || 0) + (s.text.length * s.cfg.price_tts_per_1k_chars) / 1000, stt: s.costs.stt || 0 };\nreturn { json: out };"
+        },
+        "id": "e2c38044-7cad-4904-8781-71ff4744f63b",
+        "name": "Interpretar audio y palabras",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          5424,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "toBinary",
+          "sourceProperty": "audio_b64",
+          "options": {
+            "fileName": "={{ $json.piece_id }}.mp3",
+            "mimeType": "audio/mpeg"
+          }
+        },
+        "id": "b12049d3-ed24-4aa2-ac70-1b9292a8590a",
+        "name": "Audio a binario",
+        "type": "n8n-nodes-base.convertToFile",
+        "typeVersion": 1.1,
+        "position": [
+          5664,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "write",
+          "fileName": "={{ $('Interpretar audio y palabras').item.json.audio_path }}",
+          "options": {}
+        },
+        "id": "0ca1c738-5568-49a7-be10-bd0c70d010c6",
+        "name": "Guardar MP3 en disco",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          5904,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = Object.assign({}, $('Interpretar audio y palabras').item.json);\ndelete s.audio_b64;\nreturn { json: s };"
+        },
+        "id": "48beb7f3-2336-4dba-a862-97e619d651d9",
+        "name": "Restaurar estado tras audio",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          6144,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nlet job;\nif (s.kind === 'script') {\n  job = { id: s.piece_id, kind: 'tts', formats: ['9x16', '16x9'], title: s.title, kicker: 'Matemáticas · Grado Superior · C. Valenciana', thumbText: s.yt.texto_miniatura, audioPath: s.audio_path, words: s.words };\n} else {\n  job = { id: s.piece_id, kind: 'clip', formats: ['9x16', '16x9'], title: s.title, kicker: 'Clase en directo · ' + (s.clip.type || 'clip'), thumbText: s.yt.texto_miniatura, sourceVideo: s.clip.source_video, start: s.clip.start, end: s.clip.end, words: s.clip.words, crop: s.cfg.clip_crop };\n}\nconst out = Object.assign({}, s, { job_b64: Buffer.from(JSON.stringify(job), 'utf8').toString('base64') });\nreturn { json: out };"
+        },
+        "id": "e696b77e-ee6a-4a5d-9ab2-710970bbb976",
+        "name": "Preparar render",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          6384,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "executeOnce": false,
+          "command": "=node /data/scripts/render.js b64:{{ $json.job_b64 }}"
+        },
+        "id": "b6965ac8-d1a3-49d1-b976-70abd261c418",
+        "name": "FFmpeg · Montar 9:16 y 16:9 + miniatura",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          6624,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Preparar render').item.json;\nconst r = JSON.parse($json.stdout);\nconst fmt = s.kind === 'script' ? s.cfg.publish_format_script : s.cfg.publish_format_clip;\nconst v = r.videos.find((x) => x.format === fmt) || r.videos[0];\nconst out = Object.assign({}, s, { render: r, publish_video_path: v.path, thumb_path: r.thumb });\ndelete out.job_b64;\nreturn { json: out };"
+        },
+        "id": "d8b1ed00-c9a1-40c2-80c2-fe54e56ed2bf",
+        "name": "Interpretar render",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          6864,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.cfg.publish_enabled }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "79706d22-c610-4f00-a805-b751d8f3ed2b",
+        "name": "¿Publicar en YouTube?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          7104,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "fileSelector": "={{ $json.publish_video_path }}",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        },
+        "id": "1cdfacd2-034b-4167-a742-256032c8578d",
+        "name": "Leer vídeo final",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          7344,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "video",
+          "operation": "upload",
+          "title": "={{ $('Interpretar render').item.json.yt.titulo }}",
+          "regionCode": "ES",
+          "categoryId": "27",
+          "options": {
+            "defaultLanguage": "es",
+            "description": "={{ $('Interpretar render').item.json.yt.descripcion }}",
+            "notifySubscribers": false,
+            "privacyStatus": "unlisted",
+            "selfDeclaredMadeForKids": false,
+            "tags": "={{ $('Interpretar render').item.json.yt.etiquetas.join(',') }}"
+          }
+        },
+        "id": "19622543-f37f-4804-81fc-a11cb11547b5",
+        "name": "YouTube · Subir como no listado",
+        "type": "n8n-nodes-base.youTube",
+        "typeVersion": 1,
+        "position": [
+          7584,
+          304
+        ],
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 15000,
+        "credentials": {
+          "youTubeOAuth2Api": {
+            "id": "egER56qLRYrMOoFJ",
+            "name": "YouTube account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fileSelector": "={{ $('Interpretar render').item.json.thumb_path }}",
+          "options": {
+            "dataPropertyName": "data"
+          }
+        },
+        "id": "0b45a410-b19b-4bb7-ac05-423e3da6f7ae",
+        "name": "Leer miniatura",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          7824,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://www.googleapis.com/upload/youtube/v3/thumbnails/set?uploadType=media&videoId={{ $('YouTube · Subir como no listado').item.json.uploadId || $('YouTube · Subir como no listado').item.json.id }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "youTubeOAuth2Api",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "image/jpeg"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "binaryData",
+          "inputDataFieldName": "data",
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "3d3c6497-e3c0-4633-9556-0aadc33fde9d",
+        "name": "YouTube · Fijar miniatura",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          8064,
+          304
+        ],
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "youTubeOAuth2Api": {
+            "id": "egER56qLRYrMOoFJ",
+            "name": "YouTube account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $('Interpretar render').item.json;\nconst up = $('YouTube · Subir como no listado').item.json;\nconst id = up.uploadId || up.id;\nconst thumbErr = $json && $json.error ? ' (miniatura no aplicada: ' + ($json.error.message || 'error') + ')' : '';\nconst c = s.costs;\nconst final = {\n  piece_id: s.piece_id, run_id: s.run_id, kind: s.kind, title: s.yt.titulo, status: 'publicada', review_verdict: 'aprobada',\n  review_reason: s.review_reason + thumbErr, attempts: s.attempts || 0, cost_llm_usd: c.llm, cost_voice_usd: c.voice, cost_stt_usd: c.stt,\n  cost_total_usd: c.llm + c.voice + c.stt, youtube_url: 'https://www.youtube.com/watch?v=' + id, source_ref: s.source_ref, script_text: s.text, error: ''\n};\nreturn { json: Object.assign({}, s, { final: final }) };"
+        },
+        "id": "a89b448f-de8f-439f-93ec-cb40b75f6d64",
+        "name": "Resultado · publicada",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          8304,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "pDESRFfLEkDjWfOE"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "piece_id",
+                "keyValue": "={{ $json.final.piece_id }}"
+              }
+            ]
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "piece_id": "={{ $json.final.piece_id }}",
+              "run_id": "={{ $json.final.run_id }}",
+              "kind": "={{ $json.final.kind }}",
+              "title": "={{ $json.final.title }}",
+              "status": "={{ $json.final.status }}",
+              "review_verdict": "={{ $json.final.review_verdict }}",
+              "review_reason": "={{ $json.final.review_reason }}",
+              "attempts": "={{ $json.final.attempts }}",
+              "cost_llm_usd": "={{ $json.final.cost_llm_usd }}",
+              "cost_voice_usd": "={{ $json.final.cost_voice_usd }}",
+              "cost_stt_usd": "={{ $json.final.cost_stt_usd }}",
+              "cost_total_usd": "={{ $json.final.cost_total_usd }}",
+              "youtube_url": "={{ $json.final.youtube_url }}",
+              "source_ref": "={{ $json.final.source_ref }}",
+              "script_text": "={{ $json.final.script_text }}",
+              "error": "={{ $json.final.error }}"
+            },
+            "matchingColumns": [
+              "piece_id"
+            ],
+            "schema": [
+              {
+                "id": "piece_id",
+                "displayName": "piece_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "run_id",
+                "displayName": "run_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "kind",
+                "displayName": "kind",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "title",
+                "displayName": "title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_verdict",
+                "displayName": "review_verdict",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "review_reason",
+                "displayName": "review_reason",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "attempts",
+                "displayName": "attempts",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_llm_usd",
+                "displayName": "cost_llm_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_voice_usd",
+                "displayName": "cost_voice_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_stt_usd",
+                "displayName": "cost_stt_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "cost_total_usd",
+                "displayName": "cost_total_usd",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "youtube_url",
+                "displayName": "youtube_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "source_ref",
+                "displayName": "source_ref",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "script_text",
+                "displayName": "script_text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "error",
+                "displayName": "error",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "3d86e7c1-675d-4e47-959d-c3c38d106506",
+        "name": "Tabla · registrar resultado final",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          8560,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const s = $json;\nconst c = s.costs;\nconst final = {\n  piece_id: s.piece_id, run_id: s.run_id, kind: s.kind, title: s.yt.titulo, status: 'revisada', review_verdict: 'aprobada',\n  review_reason: s.review_reason + ' | Vídeo montado en ' + s.publish_video_path + ' (publicación desactivada)', attempts: s.attempts || 0, cost_llm_usd: c.llm, cost_voice_usd: c.voice, cost_stt_usd: c.stt,\n  cost_total_usd: c.llm + c.voice + c.stt, youtube_url: '', source_ref: s.source_ref, script_text: s.text, error: ''\n};\nreturn { json: Object.assign({}, s, { final: final }) };"
+        },
+        "id": "db7f239d-0fd8-4b01-8430-56273484718f",
+        "name": "Resultado · revisada sin publicar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          7344,
+          560
+        ]
+      }
+    ],
+    "connections": {
+      "Recibe pieza": {
+        "main": [
+          [
+            {
+              "node": "¿Es guion de texto?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Es guion de texto?": {
+        "main": [
+          [
+            {
+              "node": "Prompt guion",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Pieza generada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt guion": {
+        "main": [
+          [
+            {
+              "node": "Claude · Escribir guion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude · Escribir guion": {
+        "main": [
+          [
+            {
+              "node": "Interpretar guion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar guion": {
+        "main": [
+          [
+            {
+              "node": "Pieza generada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pieza generada": {
+        "main": [
+          [
+            {
+              "node": "Tabla · estado generada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tabla · estado generada": {
+        "main": [
+          [
+            {
+              "node": "Restaurar estado tras tabla",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Restaurar estado tras tabla": {
+        "main": [
+          [
+            {
+              "node": "Agente revisor · revisión 1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Agente revisor · revisión 1": {
+        "main": [
+          [
+            {
+              "node": "¿Aprobado en revisión 1?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Aprobado en revisión 1?": {
+        "main": [
+          [
+            {
+              "node": "Pieza aprobada",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "¿Se puede corregir?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pieza aprobada": {
+        "main": [
+          [
+            {
+              "node": "Prompt metadatos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Se puede corregir?": {
+        "main": [
+          [
+            {
+              "node": "Prompt corrección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Resultado · rechazada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt corrección": {
+        "main": [
+          [
+            {
+              "node": "Claude · Corregir guion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude · Corregir guion": {
+        "main": [
+          [
+            {
+              "node": "Interpretar corrección",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar corrección": {
+        "main": [
+          [
+            {
+              "node": "Agente revisor · revisión 2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Agente revisor · revisión 2": {
+        "main": [
+          [
+            {
+              "node": "¿Aprobado en revisión 2?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Aprobado en revisión 2?": {
+        "main": [
+          [
+            {
+              "node": "Pieza aprobada",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Resultado · rechazada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Resultado · rechazada": {
+        "main": [
+          [
+            {
+              "node": "Tabla · registrar resultado final",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt metadatos": {
+        "main": [
+          [
+            {
+              "node": "Claude · Metadatos de YouTube",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude · Metadatos de YouTube": {
+        "main": [
+          [
+            {
+              "node": "Interpretar metadatos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar metadatos": {
+        "main": [
+          [
+            {
+              "node": "¿Necesita voz?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Necesita voz?": {
+        "main": [
+          [
+            {
+              "node": "Prompt voz",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Preparar render",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prompt voz": {
+        "main": [
+          [
+            {
+              "node": "ElevenLabs · Voz clonada con marcas de tiempo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "ElevenLabs · Voz clonada con marcas de tiempo": {
+        "main": [
+          [
+            {
+              "node": "Interpretar audio y palabras",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar audio y palabras": {
+        "main": [
+          [
+            {
+              "node": "Audio a binario",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Audio a binario": {
+        "main": [
+          [
+            {
+              "node": "Guardar MP3 en disco",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Guardar MP3 en disco": {
+        "main": [
+          [
+            {
+              "node": "Restaurar estado tras audio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Restaurar estado tras audio": {
+        "main": [
+          [
+            {
+              "node": "Preparar render",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar render": {
+        "main": [
+          [
+            {
+              "node": "FFmpeg · Montar 9:16 y 16:9 + miniatura",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "FFmpeg · Montar 9:16 y 16:9 + miniatura": {
+        "main": [
+          [
+            {
+              "node": "Interpretar render",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Interpretar render": {
+        "main": [
+          [
+            {
+              "node": "¿Publicar en YouTube?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Publicar en YouTube?": {
+        "main": [
+          [
+            {
+              "node": "Leer vídeo final",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Resultado · revisada sin publicar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer vídeo final": {
+        "main": [
+          [
+            {
+              "node": "YouTube · Subir como no listado",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "YouTube · Subir como no listado": {
+        "main": [
+          [
+            {
+              "node": "Leer miniatura",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer miniatura": {
+        "main": [
+          [
+            {
+              "node": "YouTube · Fijar miniatura",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "YouTube · Fijar miniatura": {
+        "main": [
+          [
+            {
+              "node": "Resultado · publicada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Resultado · publicada": {
+        "main": [
+          [
+            {
+              "node": "Tabla · registrar resultado final",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Resultado · revisada sin publicar": {
+        "main": [
+          [
+            {
+              "node": "Tabla · registrar resultado final",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true,
+      "binaryMode": "separate"
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "bc3f06e7-eccc-43e3-bd13-fb91442d5a55",
+    "activeVersionId": "bc3f06e7-eccc-43e3-bd13-fb91442d5a55",
+    "versionCounter": 5,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-10-31T17:29:02.742Z",
+        "createdAt": "2026-10-31T17:29:02.742Z",
+        "role": "workflow:owner",
+        "workflowId": "51LKiP45V4ddH2CW",
+        "projectId": "bgNOGMqVGHjShW1N",
+        "project": {
+          "updatedAt": "2026-10-31T14:08:15.204Z",
+          "createdAt": "2026-10-31T14:04:05.259Z",
+          "id": "bgNOGMqVGHjShW1N",
+          "name": "Christian Aranguiz <chnicolas.aranguiz@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "1ca18af4-cdf3-4430-bbd6-e4e5abd3a890"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Sanear metadatos para la API de YouTube",
+      "description": "Updated nodes: Interpretar metadatos"
+    }
+  }
+]

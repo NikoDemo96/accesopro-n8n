@@ -1,126 +1,128 @@
-# AccesoPro · Motor de contenido en vídeo (prueba técnica AI Engineer)
+# AccesoPro · Motor de contenido en vídeo
 
-Sistema que **produce, revisa y publica vídeo educativo** de forma automática a partir de dos fuentes:
+Sistema en **n8n** que produce, revisa y publica vídeo educativo de Matemáticas (acceso a Grado Superior, Comunitat Valenciana) a partir de dos fuentes, con un **único disparador**:
 
-1. **El texto del temario** → ideas → guiones cortos (30-60 s) → voz clonada → vídeo 9:16 y 16:9.
-2. **Una clase grabada en directo** → transcripción → detección de 5-8 momentos con valor propio → clips 9:16 y 16:9.
+1. **El texto del tema** (T1_S01, Números reales) → ideas → guiones de 30-60 s → voz clonada → vídeo.
+2. **Una clase grabada en directo** → transcripción → momentos con valor propio → clips.
 
-Entre la generación y la publicación hay un **agente revisor** (un modelo distinto del que escribe) que comprueba cada guion y cada clip contra el **temario oficial de la Generalitat Valenciana** y rechaza lo que tenga errores o datos inventados.
+Entre generar y publicar hay un **agente revisor**: un modelo distinto del que escribe comprueba cada guion y cada clip contra el temario oficial y rechaza los que tengan errores. Todo queda en una **tabla de control** con estado, coste real y enlace.
 
-Todo se lanza con **un solo botón** (_Execute workflow_ en el workflow principal) y deja una **tabla de control** con el estado, el coste y el enlace de cada pieza.
+## Resultado de la prueba
 
----
+|                                            |                                                                                         |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Guiones publicados (no listados)           | 4                                                                                       |
+| Clips de la clase publicados (no listados) | 3                                                                                       |
+| Clips rechazados por el revisor            | 9 de 12 candidatos (motivo registrado)                                                  |
+| Coste registrado en la tabla               | 3,18 $ (el gasto total de pruebas fue algo mayor; todo muy por debajo del tope de 30 €) |
 
-## 1. Qué hay en este repositorio
+Enlaces, estados y costes por pieza: [data/tabla_de_control.csv](data/tabla_de_control.csv) (o la tabla `accesopro_piezas` en n8n).
+Ejemplos del revisor: [docs/ejemplos_revisor.md](docs/ejemplos_revisor.md). Arquitectura y escalado: [docs/arquitectura.md](docs/arquitectura.md).
 
-| Ruta                                                    | Qué es                                                                                                                           |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `docker-compose.yml`, `Dockerfile`                      | n8n local con FFmpeg y yt-dlp ya instalados                                                                                      |
-| `workflows/*.json`                                      | Exportación de los 3 workflows de n8n (importables)                                                                              |
-| `data/scripts/`                                         | Scripts de medios: `render.js` (montaje, subtítulos, miniatura), `download.sh` (yt-dlp), `prepare_audio.sh` (audio para Whisper) |
-| `data/brand/`                                           | Brand book, logos y tipografía Inter (licencia OFL)                                                                              |
-| `data/in/`                                              | Entradas: temario TXT, guion de podcast JSON, temario oficial PDF (la clase se descarga sola)                                    |
-| `data/audio`, `data/video`, `data/thumbs`, `data/clips` | Salidas generadas                                                                                                                |
+| Pieza        | Tipo         | Enlace                                      |
+| ------------ | ------------ | ------------------------------------------- |
+| T1S01-idea-1 | guion (9:16) | https://www.youtube.com/watch?v=dOJ5dtxsoPw |
+| T1S01-idea-2 | guion (9:16) | https://www.youtube.com/watch?v=j1rmCSn32hQ |
+| T1S01-idea-3 | guion (9:16) | https://www.youtube.com/watch?v=VUvULnrsEEg |
+| T1S01-idea-4 | guion (9:16) | https://www.youtube.com/watch?v=nVM8rfrLjjU |
+| CLASE-01     | clip (16:9)  | https://www.youtube.com/watch?v=OR3HEclKZOo |
+| CLASE-02     | clip (16:9)  | https://www.youtube.com/watch?v=iK8uBmPTBck |
+| CLASE-2458   | clip (16:9)  | https://www.youtube.com/watch?v=dzbI6xNbbuc |
 
-### Los 3 workflows de n8n
+## Qué hay en el repositorio
 
-| Workflow                                              | Función                                                                                                                                         |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **AccesoPro · Motor de contenido en vídeo (Nivel 1)** | El que se lanza. Lee las fuentes, divide el tema en ideas, descarga y transcribe la clase, elige los clips y lanza la producción de cada pieza. |
-| **AccesoPro · Producir pieza**                        | Se ejecuta una vez por pieza: guion → revisión → (corrección) → metadatos → voz → montaje → YouTube → tabla.                                    |
-| **AccesoPro · Agente revisor**                        | Revisa una pieza contra el temario oficial y devuelve veredicto con los errores citados.                                                        |
+| Ruta                               | Qué es                                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `docker-compose.yml`, `Dockerfile` | n8n local con FFmpeg y yt-dlp instalados                                                                      |
+| `workflows/1_agente_revisor.json`  | Sub-workflow: revisa una pieza contra el temario oficial                                                      |
+| `workflows/2_producir_pieza.json`  | Sub-workflow: una pieza de principio a fin                                                                    |
+| `workflows/3_motor_video.json`     | **El que se lanza**: lee fuentes, divide en ideas, transcribe la clase, elige clips y procesa todo            |
+| `data/scripts/`                    | `render.js` (montaje, subtítulos, miniatura), `download.sh` (yt-dlp), `prepare_audio.sh` (audio para Whisper) |
+| `docs/`                            | Arquitectura (≤2 páginas) y ejemplos del revisor                                                              |
 
----
+El material de Grupo Mentor (temario, podcast, PDF oficial, clase, brand book) **no se incluye**: va en `data/in/` y `data/brand/`, excluidos por `.gitignore`.
 
-## 2. Puesta en marcha (sin perfil técnico)
+## Puesta en marcha
 
-### 2.1 Arrancar n8n
+### 1. Arrancar n8n
 
-1. Instala **Docker Desktop**.
-2. En esta carpeta ejecuta: `docker compose up -d --build`
-3. Abre <http://localhost:5679> y crea tu usuario de n8n.
+1. Instala Docker Desktop.
+2. En esta carpeta: `docker compose up -d --build`
+3. Abre <http://localhost:5679> y crea tu usuario.
 
-### 2.2 Importar los workflows
+### 2. Material de entrada
 
-En n8n: _Workflows → Import from file_ y carga, **en este orden**, los tres ficheros de `workflows/`:
-`1_agente_revisor.json`, `2_producir_pieza.json`, `3_motor_video.json`.
+Copia en `data/in/`: `Temario AccesoPro Matematicas Valencia GS.txt`, `MAT_GS_COMUNIDAD_VALENCIANA_T1_S01_podcast.json` y `Temario Oficial Matematicas Valencia GS.pdf`. En `data/brand/` deja `logo.png` y la carpeta `fonts/` (Inter). La clase se descarga sola con yt-dlp.
 
-> Si los IDs cambian al importar, abre los nodos _Execute Workflow_ (“Agente revisor · revisión 1/2” y “Producir pieza”) y vuelve a seleccionar el workflow correspondiente.
+### 3. Importar los workflows
 
-### 2.3 Crear la tabla de control
+_Workflows → Import from file_, en este orden: `1_agente_revisor.json`, `2_producir_pieza.json`, `3_motor_video.json`.
 
-_Data tables → Create_ con el nombre **`accesopro_piezas`** y estas columnas:
-`piece_id, run_id, kind, title, status, review_verdict, review_reason` (texto), `attempts` (número), `cost_llm_usd, cost_voice_usd, cost_stt_usd, cost_total_usd` (número), `youtube_url, source_ref, script_text, error` (texto). Después selecciónala en los nodos “Tabla · …”.
+- En `2_producir_pieza`, abre los nodos "Agente revisor · revisión 1/2" y vuelve a seleccionar el workflow _Agente revisor_.
+- En `3_motor_video`, abre "Producir pieza (sub-workflow)" y selecciona _Producir pieza_.
+- **Publica** (_Publish_) los workflows 1 y 2: n8n no deja llamar a sub-workflows sin publicar.
 
-### 2.4 Credenciales (tus propias claves)
+### 4. Tabla de control
 
-| Credencial en n8n                         | Para qué                                                 |
-| ----------------------------------------- | -------------------------------------------------------- |
-| **Anthropic**                             | Escribir guiones, dividir ideas, elegir clips, metadatos |
-| **OpenAI**                                | Agente revisor (GPT) y transcripción Whisper             |
-| **Header Auth** con cabecera `xi-api-key` | ElevenLabs (voz clonada)                                 |
-| **YouTube OAuth2**                        | Subir los vídeos como _no listados_ a tu canal de prueba |
+_Data tables → Create_ con nombre `accesopro_piezas` y columnas: `piece_id, run_id, kind, title, status, review_verdict, review_reason, youtube_url, source_ref, script_text, error` (texto) y `attempts, cost_llm_usd, cost_voice_usd, cost_stt_usd, cost_total_usd` (número). Selecciónala en los nodos "Tabla · …".
 
-### 2.5 Tu voz
+### 5. Credenciales (tus propias claves)
 
-1. En ElevenLabs crea un **clon de voz instantáneo** (_Voices → Add voice → Instant Voice Clone_) con 1-2 minutos de tu audio.
-2. Copia el **Voice ID**.
-3. Abre el nodo **Configuración** del workflow principal y pega el ID en `voice_id`.
+| Credencial                 | Para qué                                     |
+| -------------------------- | -------------------------------------------- |
+| Anthropic                  | Guiones, ideas, elección de clips, metadatos |
+| OpenAI                     | Agente revisor (GPT) y transcripción Whisper |
+| Header Auth (`xi-api-key`) | ElevenLabs (voz clonada)                     |
+| YouTube OAuth2             | Subir como _no listado_ a tu canal de prueba |
 
-### 2.6 Lanzar
+Para YouTube: el canal debe estar **verificado por teléfono** (si no, las miniaturas personalizadas dan "Forbidden") y tu cuenta añadida como usuario de prueba en la pantalla de consentimiento de Google.
 
-1. En **Configuración** deja `publish_enabled: false` para una primera prueba (monta los vídeos pero no publica). Cuando todo esté bien, pon `true`.
-2. Pulsa **Execute workflow** en el workflow principal.
-3. Mira el resultado en la tabla `accesopro_piezas` y los vídeos en `data/video/` y las miniaturas en `data/thumbs/`.
+### 6. Tu voz
 
----
+Crea un _Instant Voice Clone_ en ElevenLabs (plan de pago) con 1-2 minutos de tu voz y pega su **Voice ID** en el nodo **Configuración** (`voice_id`).
 
-## 3. Cómo funciona (resumen)
+### 7. Lanzar
+
+En el workflow `3_motor_video` pulsa **Execute workflow**. Los ajustes (modelos, precios, límites, publicar o no) están en el nodo **Configuración**: con `publish_enabled: false` monta los vídeos sin subirlos.
+
+## Cómo funciona
 
 ```
 Disparador único
-  ├─ Texto: temario TXT + podcast JSON + PDF oficial
-  │     └─ Claude divide el tema en 4 ideas
+  ├─ Texto: temario + podcast + PDF oficial → Claude divide el tema en 4 ideas
   └─ Clase: yt-dlp → audio en trozos → Whisper (palabras con tiempos)
-        └─ Claude elige 5-8 momentos (explicación completa / truco / error típico)
-              └─ se ajustan a límites de frase y se validan (duración, solapes)
+        → Claude elige 5-8 momentos → se ajustan a frases completas y a la duración
 
-Por cada pieza (workflow “Producir pieza”):
-  guion (Claude) ─► Agente revisor (GPT + temario oficial) ─► ¿aprobado?
-        │ no, y es guion: Claude corrige con el informe ─► segunda revisión
-        │ sigue rechazado: se descarta y se guarda el motivo
-        └ sí: metadatos (título, descripción, etiquetas, texto de miniatura)
-              ─► voz ElevenLabs con marcas de tiempo (solo guiones)
-              ─► FFmpeg: 9:16 y 16:9, subtítulos quemados palabra a palabra, logo, miniatura
-              ─► YouTube (no listado) ─► tabla de control
+Por cada pieza:
+  guion (Claude) → revisor (GPT + temario oficial) → ¿aprobado?
+     no, y es guion: Claude corrige con el informe → 2.ª revisión → si falla, se descarta
+     sí: metadatos → voz ElevenLabs (guiones) → FFmpeg 9:16 y 16:9 + miniatura
+         → YouTube (no listado) → tabla de control
 ```
 
-**Estados de la tabla:** `generada` → `revisada` (aprobada y montada) → `publicada`; o `rechazada` (con motivo) o `error`.
+Estados: `generada` → `revisada` → `publicada`; o `rechazada` (con motivo) o `error`.
 
-**Coste real por pieza:** se calcula con los tokens reales devueltos por las APIs (Claude, GPT, Whisper) y los caracteres enviados a ElevenLabs. Los precios están en el nodo _Configuración_ (`price_*`) y se pueden actualizar.
+## Decisiones y por qué
 
----
+- **n8n orquesta; FFmpeg/yt-dlp hacen el montaje.** Cada paso es un nodo visible, con reintentos y credenciales. El montaje con subtítulos palabra a palabra es un script (`render.js`) porque es más legible y fácil de probar que comandos largos dentro de nodos.
+- **Escritor y revisor son modelos distintos** (Claude y GPT) para que el revisor no valide sus propios errores.
+- **El revisor recalcula cada operación.** El PDF oficial solo lista saberes básicos (6.700 caracteres, sin fórmulas ni ejemplos), así que comprueba que la pieza está dentro del temario y verifica la matemática por su cuenta. Devuelve un veredicto estructurado (errores con cita literal, cálculos verificados, datos no respaldados) y, en clips, si se entienden sin el resto de la clase.
+- **Los clips no se corrigen, se descartan:** no se puede cambiar lo que dijo la profesora. Por eso 9 de 12 candidatos se rechazaron: la clase contiene errores reales (por ejemplo "el valor absoluto siempre es positivo").
+- **Clips elegidos por criterio pedagógico,** no por tiempo: Claude ve la transcripción y el código ajusta inicio y fin a límites de frase, recorta a la duración máxima y evita solapes.
+- **Idempotencia:** cada pieza tiene un identificador estable (los clips, por minuto de inicio, p. ej. `CLASE-2458`) y la tabla se escribe con _upsert_; no se vuelve a producir ni publicar lo ya publicado, ni se repiten fragmentos ya rechazados.
+- **Límites:** presupuesto diario, tope de subidas diarias (cuota de YouTube) y piezas por ejecución. Si una pieza falla, las demás continúan y el error queda en la tabla.
+- **Duración de guiones:** se piden 85-115 palabras y, si la voz pasa de 60 s, `render.js` la acelera lo justo y reajusta los subtítulos.
+- **Imagen de marca:** tipografía Inter y colores del brand book (azul `#111E32`, verde `#59C267`).
 
-## 4. Decisiones y por qué
+## Lo que dejé fuera (y por qué)
 
-- **n8n como orquestador, FFmpeg/yt-dlp como herramientas de medios.** n8n da visibilidad (cada paso es un nodo), reintentos y credenciales; el montaje pesado queda en scripts reproducibles.
-- **Escritor y revisor son modelos distintos (Claude vs GPT).** Un revisor del mismo modelo tiende a validar sus propios errores.
-- **El revisor recibe el temario oficial y recalcula cada operación.** Devuelve un veredicto estructurado (errores con cita literal, cálculos verificados, datos no respaldados). Solo se aprueba si no hay ningún problema.
-- **Corrección acotada.** Un guion rechazado se corrige una vez con el informe del revisor; si sigue mal, se descarta. Los clips no se “corrigen” (no se puede cambiar lo que dijo la profesora): se descartan.
-- **Subtítulos con tiempos reales.** Guiones: ElevenLabs `with-timestamps`. Clips: Whisper con marcas por palabra. Se queman con subtítulos ASS resaltando la palabra actual.
-- **Clips elegidos con criterio pedagógico,** no por tiempo: el modelo ve la transcripción con tiempos, y el código ajusta inicio/fin a límites de frase y descarta solapes y duraciones fuera de rango.
-- **Idempotencia.** Cada pieza tiene un identificador estable (`T1S01-idea-1`, `CLASE-01`…) y la tabla se escribe con _upsert_: relanzar el proceso no duplica filas ni vuelve a publicar piezas ya `publicada`.
-- **Límites.** Presupuesto diario (`daily_budget_usd`), tope de subidas diarias (`max_uploads_per_day`, por la cuota de YouTube) y máximo de piezas por ejecución.
+- **Avatar (HeyGen):** el reto evalúa la clonación de voz, no la cara.
+- **Aprobación humana, variantes A/B y cola de trabajos (Nivel 2); bucle de analítica y adaptación por comunidad (Nivel 3):** prioricé un Nivel 1 sólido. El documento de arquitectura explica cómo se añadirían.
+- **Caché de la transcripción:** la clase se transcribe en cada ejecución (≈ 0,35 $).
+- **Acumulado de costes de pruebas:** la tabla acumula desde que se añadió esa lógica; el gasto de las primeras pruebas no está sumado.
 
-## 5. Lo que dejé fuera (y por qué)
+## Avisos
 
-- **Avatar (HeyGen):** el reto evalúa la clonación de voz, no la cara; añade coste y tiempo de generación.
-- **Aprobación humana, variantes A/B, cola de trabajos (Nivel 2) y bucle de analítica / adaptación por comunidad (Nivel 3):** prioricé un Nivel 1 sólido y bien explicado. En el documento de arquitectura explico cómo los añadiría.
-- **Caché de la transcripción:** la clase se transcribe en cada ejecución (≈ 0,35 € por clase de 1 h); el vídeo y el audio sí se reutilizan si ya existen.
-
-## 6. Avisos importantes
-
-- **Cuota de YouTube Data API:** cada subida cuesta 1 600 unidades de las 10 000 diarias → unas **6 subidas al día**. Por eso se publica un formato por pieza (guiones en 9:16, clips en 16:9; configurable) aunque se monten los dos.
-- **Proyectos de Google sin verificar** pueden forzar los vídeos subidos a _privado_. Si pasa, verifica el proyecto o cambia la visibilidad desde YouTube Studio.
-- **Miniaturas personalizadas** requieren un canal verificado por teléfono; si no, el sistema continúa y lo anota.
-- **Confidencialidad:** el material es de Grupo Mentor; mantén los vídeos como _no listados_ y elimina el material y los vídeos generados 15 días después de la entrega.
+- **Cuota de YouTube:** cada subida consume cuota; de ahí el tope diario configurable.
+- **Cada ejecución regenera ideas y candidatos con Claude,** así que el contenido puede variar entre ejecuciones; lo ya publicado se respeta.
+- **Confidencialidad:** el material es de Grupo Mentor. Mantén los vídeos como _no listados_ y **elimina el material y los vídeos generados en los 15 días posteriores a la entrega**.
